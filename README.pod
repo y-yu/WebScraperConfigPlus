@@ -1,12 +1,14 @@
+=encoding utf8
+
 =head1 NAME
 
 WebScraperConfigPlus - Run Web::Scraper From Config Files ぷらす
 
 =head1 SYNOPSIS
 
-my $scraper = WebScraperConfigPlus->new($config);
-
-my $result = $scraper->scrape($url);
+ my $scraper = WebScraperConfigPlus->new($config);
+ 
+ my $result = $scraper->scrape($url);
 
 =head1 DESCRIPTION
 
@@ -35,71 +37,71 @@ callbackを取る機能はない。
 YAMLで記述した例を示すが、JSONやXMLでも問題ない。
 設定ファイルの読み込みにはConfig::Anyを使っているので、それが読めるならなんでもいい。
 
----
-scraper:
-   - process:
-      - '//table[ @summary="xxxxxx" ]/tbody'
-      - 'info[]'
-      - scraper:
-         - process:
-            - '//tr/td[2]'
-            - 'title'
-            -
-                - 'TEXT'
-                - sub: 'sub { s/\s//g; }'
-         - process:
-               - '//tr[2]/td/a[3]'
-               - 'url'
-               - '@href'
-         - process:
-               - '//tr[2]/td/a[3]'
-               - 'number'
-               -
-                  - '@href'
-                  - sub: 'sub { m/(\d{6})\.php/ and return $1 }'
-
----
-scraper:
+ ---
+ scraper:
     - process:
-        - '/html/head/meta[2]'
-        - 'discription'
-        - '@content'
-    - process:
-        - '//input[ @type="hidden" ][ @name="v" ]'
-        - 'id'
-        -
-            - '@value'
-            - sub: |
-				sub {
-					use MIME::Base64 qw(decode_base64);
-					
-					return decode_base64($_);
-				}
-
----
-subroutine:
-    after : |
-        sub {
-            my $res = (shift)->[0];
-
-            return $res->{info};
-        }
-
----
-subroutine:
-    before : |
-        sub {
-            my $result = shift;
-
-            return $result;
-        }
-
-    after  : |
-        sub { 
-            my $result = shift;
-
-            return $result;
-        }
+       - '//table[ @summary="xxxxxx" ]/tbody'
+       - 'info[]'
+       - scraper:
+          - process:
+             - '//tr/td[2]'
+             - 'title'
+             -
+                 - 'TEXT'
+                 - sub: 'sub { s/\s//g; }'
+          - process:
+                - '//tr[2]/td/a[3]'
+                - 'url'
+                - '@href'
+          - process:
+                - '//tr[2]/td/a[3]'
+                - 'number'
+                -
+                   - '@href'
+                   - sub: 'sub { m/(\d{6})\.php/ and return $1 }'
+ 
+ ---
+ scraper:
+     - process:
+         - '/html/head/meta[2]'
+         - 'discription'
+         - '@content'
+     - process:
+         - '//input[ @type="hidden" ][ @name="v" ]'
+         - 'id'
+         -
+             - '@value'
+             - sub: |
+ 				sub {
+ 					use MIME::Base64 qw(decode_base64);
+ 					
+ 					return decode_base64($_);
+ 				}
+ 
+ ---
+ subroutine:
+     after : |
+         sub {
+             my $res = (shift)->[0];
+ 
+             return $res->{info};
+         }
+ 
+ ---
+ subroutine:
+     before : |
+         sub {
+             my $result = shift;
+ 
+             return $result;
+         }
+ 
+     after  : |
+         sub { 
+             my $result = shift;
+ 
+             return $result;
+         }
 
 =head2 Syntax
 
@@ -124,16 +126,16 @@ afterで定義したサブルーチンがスクレイビングの後に実行さ
 二回目以降は、前回のafterの返り値が入る。
 
 返り値は配列リファレンスを返すこと。
-$return = [
-	{
-		url  => 'http://example.net/' or URI instance
-		lest => HTML::Tree or []
-	},
-	{
-		...
-	},
-	...
-];
+ $return = [
+ 	{
+ 		url  => 'http://example.net/' or URI instance
+ 		lest => HTML::Tree or []
+ 	},
+ 	{
+ 		...
+ 	},
+ 	...
+ ];
 この様な配列リファレンスを返えす。
 
 urlを次のスクレイピングの際に使う。

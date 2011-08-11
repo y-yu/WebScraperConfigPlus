@@ -15,8 +15,8 @@ sub new
 
 	$settings = $self->_load_config($settings);
 
-	my $config      = ([grep { $_->{scraper} } @$settings])[0];
-	my $subroutines = ([grep { $_->{subroutine} } @$settings])[0];
+	my $config      = ([ grep { $_->{scraper} }    @$settings ])[0];
+	my $subroutines = ([ grep { $_->{subroutine} } @$settings ])[0];
 
 	{
 		my $v = Data::Visitor::Callback->new(
@@ -47,10 +47,6 @@ sub new
 		$subroutines = $v->visit($subroutines);
 	}
 
-	if (@$config - @$subroutines > 1) {
-		die 'requre more subroutines';
-	}
-
 	$self->{config}	     = $config;
 	$self->{subroutines} = $subroutines;
 
@@ -65,7 +61,11 @@ sub _load_config
 	if (ref $file eq 'HASH') {
 		return $file;
 	} else {
-		my $list = Config::Any->load_files({files => [ $file ], use_ext => 1});
+		my $list = Config::Any->load_files({
+			files => [ $file ],
+			use_ext => 1,
+		});
+
 		if (! @$list ) {
 			require Carp;
 			Carp::croak("Could not load config file $file: $@");
@@ -77,14 +77,17 @@ sub _load_config
 
 sub scrape
 {
-	my $self   = shift;
-	my $result = \@_; 
+	my $self = shift;
 
 	my $config      = $self->{config};
 	my $subroutines = $self->{subroutines};
 
+	my $result;
+	$result->[0]->{url}  = pop @_;
+	$result->[0]->{lest} = \@_;
+
 	for (@$config) {
-		my $sub = (@$subroutines ? (shift @$subroutines)->{'subroutine'} : undef);
+		my $sub = (@$subroutines ? (shift @$subroutines)->{subroutine} : undef);
 
 		$result = $self->_scraping($_, $sub, $result);
 	}
@@ -101,12 +104,10 @@ sub _scraping
 	if ($subroutine->{before}) {
 		$scrape_args = $subroutine->{before}->($source) 
 	} else {
-		$scrape_args->[0]->{url}  = pop @$source;
-		$scrape_args->[0]->{lest} = $source;
+		$scrape_args = $source;
 	}
 
 	my $scraper = $self->_recurse($config)->();
-
 	my @scrape;
 	for my $arg (@$scrape_args) {
 		$arg->{url}  = URI->new($arg->{url}) if (!ref $arg->{url});
@@ -117,7 +118,7 @@ sub _scraping
 
 	my $result;
 	if ($subroutine->{after}) {
-		$result = $subroutine->{after}->( \@scrape );
+		$result = $subroutine->{after}->(\@scrape);
 	} else {
 		$result = \@scrape;
 	}

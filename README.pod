@@ -1,0 +1,171 @@
+=head1 NAME
+
+WebScraperConfigPlus - Run Web::Scraper From Config Files ぷらす
+
+=head1 SYNOPSIS
+
+my $scraper = WebScraperConfigPlus->new($config);
+
+my $result = $scraper->scrape($url);
+
+=head1 DESCRIPTION
+
+設定ファイルにスクレイピングルールと、その前後の処理を行うサブルーチンを記述出来るようにしてみた。
+
+大部分はWeb::Scraper::Configのパクリ。
+
+=head1 METHOD
+
+=head2 new
+
+インスタンス作成。
+設定ファイルのパスを入れるだけ。
+
+Web::Scraper::Configとは違って、callbackも設定ファイルに書きこむので、
+callbackを取る機能はない。
+
+=head2 scrape
+
+普通はURIのインスタンスか文字列のURLを放り込めばいい。
+
+引数はWeb::Scraper::scrapeと同じ。
+
+=head1 Config File
+
+YAMLで記述した例を示すが、JSONやXMLでも問題ない。
+設定ファイルの読み込みにはConfig::Anyを使っているので、それが読めるならなんでもいい。
+
+---
+scraper:
+   - process:
+      - '//table[ @summary="xxxxxx" ]/tbody'
+      - 'info[]'
+      - scraper:
+         - process:
+            - '//tr/td[2]'
+            - 'title'
+            -
+                - 'TEXT'
+                - sub: 'sub { s/\s//g; }'
+         - process:
+               - '//tr[2]/td/a[3]'
+               - 'url'
+               - '@href'
+         - process:
+               - '//tr[2]/td/a[3]'
+               - 'number'
+               -
+                  - '@href'
+                  - sub: 'sub { m/(\d{6})\.php/ and return $1 }'
+
+---
+scraper:
+    - process:
+        - '/html/head/meta[2]'
+        - 'discription'
+        - '@content'
+    - process:
+        - '//input[ @type="hidden" ][ @name="v" ]'
+        - 'id'
+        -
+            - '@value'
+            - sub: |
+				sub {
+					use MIME::Base64 qw(decode_base64);
+					
+					return decode_base64($_);
+				}
+
+---
+subroutine:
+    after : |
+        sub {
+            my $res = (shift)->[0];
+
+            return $res->{info};
+        }
+
+---
+subroutine:
+    before : |
+        sub {
+            my $result = shift;
+
+            return $result;
+        }
+
+    after  : |
+        sub { 
+            my $result = shift;
+
+            return $result;
+        }
+
+=head2 Syntax
+
+=head3 scraper
+
+スクレイピングのルール。
+ほとんどWeb::Scraper::Configと同じだが、サブルーチン（フィルター）を中にぶちこめる。
+
+複数記述した場合における、処理の流れは後述。
+
+=head3 subroutine
+
+スクレイピングの前後に実行されるサブルーチンを定義出来る。
+
+beforeで定義したサブルーチンが、スクレイピングの前に実行され、
+afterで定義したサブルーチンがスクレイビングの後に実行される。
+
+=head4 before
+
+与えられる引数は配列リファレンス。
+一回目はWebScraperConfigPlus::scrapeに与えられた配列リファレンス、
+二回目以降は、前回のafterの返り値が入る。
+
+返り値は配列リファレンスを返すこと。
+$return = [
+	{
+		url  => 'http://example.net/' or URI instance
+		lest => HTML::Tree or []
+	},
+	{
+		...
+	},
+	...
+];
+この様な配列リファレンスを返えす。
+
+urlを次のスクレイピングの際に使う。
+これらはループで回してスクレイピングするので、複数のURLをまとめてスクレイピング出来る。
+
+=head4 after
+
+スクレイピング結果の配列リファレンス。
+配列なので、一つ目のURLのスクレイピング結果は、$_[0]->[0]にある。
+
+これは複数のURLをスクレイピングした結果を得たい時に便利なように、単一の時の利便性を捨てたから。
+
+返り値は適当、ただし最後に実行されたafterがWebScraperConfigPlusの結果になるので注意。
+
+=head1 Sequence
+
+処理の流れは、
+
+第一サブルーチンのbefore（任意）→第一スクレイピング→第一サブルーチンのafter（任意）→第二サブルーチンのbefore ……
+
+となる。
+ここで、第一、第二という序列は、設定ファイルで定義した順になる。
+
+=head1 AUTHOR
+
+@yoshimura_yuu
+
+=head1 LICENSE
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+
+See http://www.perl.com/perl/misc/Artistic.html
+
+=cut

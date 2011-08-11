@@ -14,7 +14,8 @@ WebScraperConfigPlus - Run Web::Scraper From Config Files ぷらす
 
 設定ファイルにスクレイピングルールと、その前後の処理を行うサブルーチンを記述出来るようにしてみた。
 
-大部分はWeb::Scraper::Configのパクリ。
+大部分はWeb::Scraper::Config(http://search.cpan.org/~dmaki/Web-Scraper-Config/)を使わせて頂いた。
+有用なモジュール作成なさったDaisuke Makiさんを尊敬します。
 
 =head1 METHOD
 
@@ -32,33 +33,33 @@ callbackを取る機能はない。
 
 引数はWeb::Scraper::scrapeと同じ。
 
-=head1 Config File
+=head1 CONFIG FILE
 
 YAMLで記述した例を示すが、JSONやXMLでも問題ない。
 設定ファイルの読み込みにはConfig::Anyを使っているので、それが読めるならなんでもいい。
 
  ---
  scraper:
-    - process:
-       - '//table[ @summary="xxxxxx" ]/tbody'
-       - 'info[]'
-       - scraper:
-          - process:
-             - '//tr/td[2]'
-             - 'title'
-             -
-                 - 'TEXT'
-                 - sub: 'sub { s/\s//g; }'
-          - process:
-                - '//tr[2]/td/a[3]'
-                - 'url'
-                - '@href'
-          - process:
-                - '//tr[2]/td/a[3]'
-                - 'number'
-                -
-                   - '@href'
-                   - sub: 'sub { m/(\d{6})\.php/ and return $1 }'
+     - process:
+         - '//table[ @summary="xxxxxx" ]/tbody'
+         - 'info[]'
+         - scraper:
+		     - process:
+                 - '//tr/td[2]'
+                 - 'title'
+                 -
+                     - 'TEXT'
+                     - sub: 'sub { s/\s//g; }'
+             - process:
+                 - '//tr[2]/td/a[3]'
+                 - 'url'
+                 - '@href'
+             - process:
+                 - '//tr[2]/td/a[3]'
+                 - 'number'
+                 -
+                     - '@href'
+                     - sub: 'sub { m/(\d{6})\.php/ and return $1 }'
  
  ---
  scraper:
@@ -72,11 +73,11 @@ YAMLで記述した例を示すが、JSONやXMLでも問題ない。
          -
              - '@value'
              - sub: |
- 				sub {
- 					use MIME::Base64 qw(decode_base64);
- 					
- 					return decode_base64($_);
- 				}
+                 sub {
+                     use MIME::Base64 qw(decode_base64);
+
+                     return decode_base64($_);
+                 }
  
  ---
  subroutine:
@@ -110,7 +111,10 @@ YAMLで記述した例を示すが、JSONやXMLでも問題ない。
 スクレイピングのルール。
 ほとんどWeb::Scraper::Configと同じだが、サブルーチン（フィルター）を中にぶちこめる。
 
-複数記述した場合における、処理の流れは後述。
+scraperやprocessについては、
+Web::Scraper(http://search.cpan.org/~miyagawa/Web-Scraper/)や前述のWeb::Scraper::Configを参考にするといい。
+
+scraperを複数記述した時の処理は後述する。
 
 =head3 subroutine
 
@@ -118,6 +122,13 @@ YAMLで記述した例を示すが、JSONやXMLでも問題ない。
 
 beforeで定義したサブルーチンが、スクレイピングの前に実行され、
 afterで定義したサブルーチンがスクレイビングの後に実行される。
+
+スクレイピングだけで、後述するbeforeが返す値と同じフォーマットの配列リファレンスが用意出来れば、
+必ずしも用意する必要はない。
+
+n番目に定義したsubroutineがn番目のスクレイピングの時に用いられるので、
+例えば、4番目はいらないけど、5番目は欲しいといった場合には、
+設定ファイルに空のsubroutineを置く必要がある。
 
 =head4 before
 
@@ -150,9 +161,7 @@ urlを次のスクレイピングの際に使う。
 
 これは複数のURLをスクレイピングした結果を得たい時に便利なように、単一の時の利便性を捨てたから。
 
-返り値は適当、ただし最後に実行されたafterがWebScraperConfigPlusの結果になるので注意。
-
-=head1 Sequence
+=head1 SEQUENCE
 
 処理の流れは、
 
